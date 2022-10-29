@@ -1,0 +1,15 @@
+server:
+  port: 9999
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.2.130:8848
+
+  application:
+    name: authorization-server
+  redis:
+    host: 192.168.2.130
+    password: Password123!
+    database: 0
+    port: 6379
