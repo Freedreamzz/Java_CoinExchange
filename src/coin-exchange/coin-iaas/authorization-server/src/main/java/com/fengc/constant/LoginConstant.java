@@ -36,5 +36,7 @@ public class LoginConstant {
 
     public static final String ADMIN_ROLE_CODE = "ROLE_ADMIN";
 
+    public static final String QUERY_MEMBER_SQL =
+            "SELECT `id`,`password`, `status` FROM `user` WHERE mobile = ? or email = ? ";
 }
 

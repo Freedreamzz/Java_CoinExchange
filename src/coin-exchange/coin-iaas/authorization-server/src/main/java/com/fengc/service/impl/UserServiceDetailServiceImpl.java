@@ -19,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.annotation.Resource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -66,34 +67,10 @@ public class UserServiceDetailServiceImpl implements UserDetailsService {
      * @return
      */
     private UserDetails loadMemberUsername(String username) {
-
-        return null;
-    }
-
-    /**
-     * 后台人员登录
-     *
-     * @param username
-     * @return
-     */
-    private UserDetails loadSysUsername(String username) {
-        //使用用户名查询用户
-        //return jdbcTemplate.query(LoginConstant.QUERY_ADMIN_SQL, new RowMapper<User>() {
-        //    @Override
-        //    public User mapRow(ResultSet rs, int i) throws SQLException {
-        //        if (rs.wasNull()) {
-        //            throw new UsernameNotFoundException("用户名" + username + "不存在");
-        //        }
-        //        Long id = rs.getLong("id");
-        //        String password = rs.getString("password");
-        //        int status = rs.getInt("status");
-        //        User user = new User(String.valueOf(id), password, status == 1, true, true, true, getSysUserPermissions(id));
-        //        return user;
-        //    }
-        //}, username);
-        return jdbcTemplate.queryForObject(LoginConstant.QUERY_ADMIN_SQL, new RowMapper<User>() {
+        //1.根据用户username获取userID
+        return jdbcTemplate.queryForObject(LoginConstant.QUERY_MEMBER_SQL, new RowMapper<User>() {
             @Override
-            public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+            public User mapRow(ResultSet rs, int i) throws SQLException {
                 if (rs.wasNull()) {
                     throw new UsernameNotFoundException("用户名" + username + "不存在");
                 }
@@ -107,10 +84,53 @@ public class UserServiceDetailServiceImpl implements UserDetailsService {
                         true,
                         true,
                         true,
-                        getSysUserPermissions(id)
+                        Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"))
                 );
             }
+        },username,username);
+    }
+
+    /**
+     * 后台人员登录
+     *
+     * @param username
+     * @return
+     */
+    private UserDetails loadSysUsername(String username) {
+        //使用用户名查询用户
+        return jdbcTemplate.queryForObject(LoginConstant.QUERY_ADMIN_SQL, new RowMapper<User>() {
+            @Override
+            public User mapRow(ResultSet rs, int i) throws SQLException {
+                if (rs.wasNull()) {
+                    throw new UsernameNotFoundException("用户名" + username + "不存在");
+                }
+                Long id = rs.getLong("id");
+                String password = rs.getString("password");
+                int status = rs.getInt("status");
+                User user = new User(String.valueOf(id), password, status == 1, true, true, true, getSysUserPermissions(id));
+                return user;
+            }
         }, username);
+        //return jdbcTemplate.queryForObject(LoginConstant.QUERY_ADMIN_SQL, new RowMapper<User>() {
+        //    @Override
+        //    public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+        //        if (rs.wasNull()) {
+        //            throw new UsernameNotFoundException("用户名" + username + "不存在");
+        //        }
+        //        long id = rs.getLong("id"); // 用户的id
+        //        String password = rs.getString("password"); // 用户的密码
+        //        int status = rs.getInt("status");
+        //        return new User(   // 3 封装成一个UserDetails对象，返回
+        //                String.valueOf(id), //使用id->username
+        //                password,
+        //                status == 1,
+        //                true,
+        //                true,
+        //                true,
+        //                getSysUserPermissions(id)
+        //        );
+        //    }
+        //}, username);
     }
 
     /**
