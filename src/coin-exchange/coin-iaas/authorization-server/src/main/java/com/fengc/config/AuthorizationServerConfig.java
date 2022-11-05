@@ -3,6 +3,7 @@ package com.fengc.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -13,6 +14,10 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.A
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.token.TokenStore;
+import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
+import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
+import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
 import org.springframework.security.oauth2.provider.token.store.redis.RedisTokenStore;
 
 @Configuration
@@ -54,9 +59,28 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 
     @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
-        endpoints.tokenStore(new RedisTokenStore(redisConnectionFactory)) //配置令牌的存储（这里存放在内存中）
-                .authenticationManager(authenticationManager)
-                .userDetailsService(userDetailsService);
+        endpoints.authenticationManager(authenticationManager)
+                .userDetailsService(userDetailsService)
+                .tokenStore(jwtTokenStore())
+                .tokenEnhancer(jwtAccessTokenConverter())
+                //.tokenStore(new RedisTokenStore(redisConnectionFactory)) //配置令牌的存储（这里存放在内存中）
+        ;
+    }
+
+    private TokenStore jwtTokenStore() {
+        JwtTokenStore jwtTokenStore = new JwtTokenStore(jwtAccessTokenConverter());
+        return jwtTokenStore;
+    }
+
+    public JwtAccessTokenConverter jwtAccessTokenConverter(){
+        //用来读取JWT 生产的私钥内容（放到resource下面）
+        JwtAccessTokenConverter jwtAccessTokenConverter = new JwtAccessTokenConverter();
+        //加载私钥
+        ClassPathResource classPathResource = new ClassPathResource("coinexchange.jks");
+        KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(classPathResource,"coinexchange".toCharArray());
+        jwtAccessTokenConverter.setKeyPair(keyStoreKeyFactory.getKeyPair("coinexchange","coinexchange".toCharArray()));
+        return jwtAccessTokenConverter;
+
     }
 
     @Override

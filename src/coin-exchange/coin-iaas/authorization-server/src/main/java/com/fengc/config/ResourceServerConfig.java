@@ -17,12 +17,12 @@ public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
                 .stateless(true); // 设置这些资源仅基于令牌认证
     }
 
-    // 配置 URL 访问权限
-    @Override
-    public void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests()
-                .antMatchers("/admin/**").hasRole("admin")
-                .antMatchers("/user/**").hasRole("user")
-                .anyRequest().authenticated();
-    }
+    //// 配置 URL 访问权限
+    //@Override
+    //public void configure(HttpSecurity http) throws Exception {
+    //    http.authorizeRequests()
+    //            .antMatchers("/admin/**").hasRole("admin")
+    //            .antMatchers("/user/**").hasRole("user")
+    //            .anyRequest().authenticated();
+    //}
 }
