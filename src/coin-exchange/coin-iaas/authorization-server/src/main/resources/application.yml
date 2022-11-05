@@ -13,3 +13,8 @@ spring:
     password: Password123!
     database: 0
     port: 6379
+  datasource:
+    url: jdbc:mysql://192.168.2.130:3307/coin-exchange?useSSL=false&serverTimezon=GMT%28
+    username: root
+    password: Ltd3411??
+    driver-class-name: com.mysql.cj.jdbc.Driver

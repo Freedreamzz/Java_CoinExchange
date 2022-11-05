@@ -1,70 +1,73 @@
 package com.fengc.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
-import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
-import org.springframework.security.oauth2.provider.token.store.redis.RedisTokenStore;
 
+@EnableAuthorizationServer // 开启授权服务器的功能
 @Configuration
-@EnableAuthorizationServer
 public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdapter {
 
-    // 该对象用来支持 password 模式
-    @Autowired
-    AuthenticationManager authenticationManager;
-
+    //需要多了解一下 oauth2
 
     @Autowired
-    RedisConnectionFactory redisConnectionFactory;
+    private PasswordEncoder passwordEncoder;
 
-    // 该对象将为刷新token提供支持
     @Autowired
-    UserDetailsService userDetailsService;
+    private AuthenticationManager authenticationManager;
 
-    // 指定密码的加密方式
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        // 使用BCrypt强哈希函数加密方案（密钥迭代次数默认为10）
-        return new BCryptPasswordEncoder();
-    }
+    //@Qualifier("userServiceDetailsServiceImpl")
+    @Autowired
+    private UserDetailsService userDetailsService;
 
-    // 配置 password 授权模式
+//    @Autowired
+//    private RedisConnectionFactory redisConnectionFactory ;
+
+    /**
+     * 添加第三方的客户端
+     */
     @Override
-    public void configure(ClientDetailsServiceConfigurer clients)
-            throws Exception {
+    public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
         clients.inMemory()
-                .withClient("password")
-                .authorizedGrantTypes("password", "refresh_token") //授权模式为password和refresh_token两种
-                .accessTokenValiditySeconds(1800) // 配置access_token的过期时间
-                .resourceIds("rid") //配置资源id
+                .withClient("coin-api") // 第三方客户端的名称
+                .secret(passwordEncoder.encode("coin-secret")) //  第三方客户端的密钥
+                .scopes("all") //第三方客户端的授权范围
+                .authorizedGrantTypes("password","refresh_token")
+                .accessTokenValiditySeconds(7 * 24 *3600) // token的有效期
+                .refreshTokenValiditySeconds(30 * 24 * 3600)// refresh_token的有效期
+                .and()
+                .withClient("inside-app")
+                .secret(passwordEncoder.encode("inside-secret"))
+                .authorizedGrantTypes("client_credentials")
                 .scopes("all")
-                .secret("$2a$10$RMuFXGQ5AtH4wOvkUqyvuecpqUSeoxZYqilXzbz50dceRsga.WYiq"); //123加密后的密码
+                .accessTokenValiditySeconds(7 * 24 *3600)
+        ;
+        super.configure(clients);
     }
 
-
+    /**
+     * 配置验证管理器，UserdetailService
+     */
     @Override
-    public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
+    public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
         endpoints.authenticationManager(authenticationManager)
                 .userDetailsService(userDetailsService)
-                .tokenStore(jwtTokenStore())
-                .tokenEnhancer(jwtAccessTokenConverter())
-                //.tokenStore(new RedisTokenStore(redisConnectionFactory)) //配置令牌的存储（这里存放在内存中）
-        ;
+                .tokenStore(jwtTokenStore())// tokenStore 来存储我们的token jwt 存储token
+                .tokenEnhancer(jwtAccessTokenConverter());
+
+        super.configure(endpoints);
     }
 
     private TokenStore jwtTokenStore() {
@@ -72,20 +75,14 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
         return jwtTokenStore;
     }
 
-    public JwtAccessTokenConverter jwtAccessTokenConverter(){
-        //用来读取JWT 生产的私钥内容（放到resource下面）
-        JwtAccessTokenConverter jwtAccessTokenConverter = new JwtAccessTokenConverter();
-        //加载私钥
+    public JwtAccessTokenConverter jwtAccessTokenConverter() {
+        JwtAccessTokenConverter tokenConverter = new JwtAccessTokenConverter();
+
+        // 加载我们的私钥
         ClassPathResource classPathResource = new ClassPathResource("coinexchange.jks");
-        KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(classPathResource,"coinexchange".toCharArray());
-        jwtAccessTokenConverter.setKeyPair(keyStoreKeyFactory.getKeyPair("coinexchange","coinexchange".toCharArray()));
-        return jwtAccessTokenConverter;
-
+        KeyStoreKeyFactory keyStoreKeyFactory = new KeyStoreKeyFactory(classPathResource, "coinexchange".toCharArray());
+        tokenConverter.setKeyPair(keyStoreKeyFactory.getKeyPair("coinexchange", "coinexchange".toCharArray()));
+        return tokenConverter;
     }
 
-    @Override
-    public void configure(AuthorizationServerSecurityConfigurer security) {
-        // 表示支持 client_id 和 client_secret 做登录认证
-        security.allowFormAuthenticationForClients();
-    }
 }
