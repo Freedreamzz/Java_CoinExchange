@@ -43,14 +43,19 @@ public class UserServiceDetailServiceImpl implements UserDetailsService {
             throw new AuthenticationServiceException("登录类型不能为null");
         }
         UserDetails userDetails = null;
+        String grantType = requestAttributes.getRequest().getParameter("grant_type");
         try {
+            if (LoginConstant.REFRESH_TOKEN.equals(grantType.toUpperCase())) {
+                // 为refresh_token 时，需要将id->username
+                username = adjustUsername(username, loginType);
+            }
             switch (loginType) {
                 case LoginConstant.ADMIN_TYPE:
                     userDetails = loadSysUsername(username);
                     break;
                 case LoginConstant.MEMBER_TYPE:
                     userDetails = loadMemberUsername(username);
-                     break;
+                    break;
                 default:
                     throw new AuthenticationServiceException("暂不支持的登录方式：" + loginType);
             }
@@ -58,6 +63,23 @@ public class UserServiceDetailServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("用户名" + username + "不存在");
         }
         return userDetails;
+    }
+
+    /**
+     * 纠正在refresh 场景下的登录问题
+     * 也就是id跟换为name
+     * @param username
+     * @param loginType
+     * @return
+     */
+    private String adjustUsername(String username, String loginType) {
+        if (LoginConstant.ADMIN_TYPE.equals(loginType)) {
+            return jdbcTemplate.queryForObject(LoginConstant.QUERY_ADMIN_USER_WITH_ID, String.class, username);
+        }
+        if (LoginConstant.MEMBER_TYPE.equals(loginType)) {
+            return jdbcTemplate.queryForObject(LoginConstant.QUERY_MEMBER_USER_WITH_ID, String.class, username);
+        }
+        return username;
     }
 
     /**
@@ -87,7 +109,7 @@ public class UserServiceDetailServiceImpl implements UserDetailsService {
                         Arrays.asList(new SimpleGrantedAuthority("ROLE_USER"))
                 );
             }
-        },username,username);
+        }, username, username);
     }
 
     /**
@@ -107,30 +129,9 @@ public class UserServiceDetailServiceImpl implements UserDetailsService {
                 Long id = rs.getLong("id");
                 String password = rs.getString("password");
                 int status = rs.getInt("status");
-                User user = new User(String.valueOf(id), password, status == 1, true, true, true, getSysUserPermissions(id));
-                return user;
+                return new User(String.valueOf(id), password, status == 1, true, true, true, getSysUserPermissions(id));
             }
         }, username);
-        //return jdbcTemplate.queryForObject(LoginConstant.QUERY_ADMIN_SQL, new RowMapper<User>() {
-        //    @Override
-        //    public User mapRow(ResultSet rs, int rowNum) throws SQLException {
-        //        if (rs.wasNull()) {
-        //            throw new UsernameNotFoundException("用户名" + username + "不存在");
-        //        }
-        //        long id = rs.getLong("id"); // 用户的id
-        //        String password = rs.getString("password"); // 用户的密码
-        //        int status = rs.getInt("status");
-        //        return new User(   // 3 封装成一个UserDetails对象，返回
-        //                String.valueOf(id), //使用id->username
-        //                password,
-        //                status == 1,
-        //                true,
-        //                true,
-        //                true,
-        //                getSysUserPermissions(id)
-        //        );
-        //    }
-        //}, username);
     }
 
     /**
